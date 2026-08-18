@@ -18,9 +18,13 @@ class DatabaseManager:
 
     def _init_db(self):
         # Ensure database directory exists
-        db_dir = os.path.dirname(os.path.abspath(self.db_path))
-        if db_dir and not os.path.exists(db_dir):
-            os.makedirs(db_dir, exist_ok=True)
+        try:
+            db_dir = os.path.dirname(os.path.abspath(self.db_path))
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+        except PermissionError:
+            print(f"WARNING: Permission denied to create directory. Falling back to local database.db")
+            self.db_path = "database.db"
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
