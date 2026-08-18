@@ -1,0 +1,14 @@
+fastapi>=0.100.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+langgraph>=0.1.0
+langchain-core>=0.2.0
+langchain-openai>=0.1.0
+langchain-google-genai>=1.0.0
+langchain-groq>=0.1.0
+fastmcp>=0.1.0
+httpx>=0.24.0
+requests>=2.31.0
+langchain-mcp-adapters>=0.1.0
+sqlite3-api>=0.1.0; python_version < "3.0" # just fallback, standard library sqlite3 is included in python
