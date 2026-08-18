@@ -20,7 +20,7 @@ An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashb
 The following diagram illustrates how the **React Frontend**, **FastAPI Backend**, **LangGraph Workflow**, **SQLite database**, and external API providers communicate:
 
 ```mermaid
-graph TB
+graph TD
     subgraph Client ["React Frontend UI"]
         UI["Split-Pane Dashboard"]
         WS["Workspace Panel"]
@@ -28,7 +28,7 @@ graph TB
 
     subgraph Server ["FastAPI Backend"]
         API["FastAPI Router"]
-        Scheduler["Background daemon Scheduler Thread"]
+        Scheduler["Daemon Scheduler Thread"]
         MCP["FastMCP LinkedIn Server"]
     end
 
@@ -48,30 +48,23 @@ graph TB
         LinkedIn["LinkedIn API Gateway"]
     end
 
-    %% Client Interactions
-    UI -->|1. Chat Prompt / state_update| API
-    WS -->|2. HITL Approval Actions| API
-    API -->|12. Render messages & draft / image| UI
+    %% Vertical Interactions & Short Labels
+    UI <-->|"Prompt & Render"| API
+    WS -->|"HITL Actions"| API
     
-    %% API Routing
-    API -->|3. Get/Set state| LG
-    API -->|4. Persist logs| SQL
-    Scheduler -->|10. Check due posts| SQL
+    API <-->|"State & Interrupts"| LG
+    API -->|"Save Logs"| SQL
+    API -->|"Direct Publish"| MCP
     
-    %% LangGraph Routing
-    LG -->|5. Thread Save| Saver
-    LG -->|6. Execute Node Logic| External
+    Scheduler -->|"Poll Due Posts"| SQL
+    Scheduler -->|"Auto Publish"| MCP
+    MCP -->|"Update Status"| SQL
+    MCP -->|"Upload & Share"| LinkedIn
     
-    %% Tool execution
-    LG -->|Tavily Research| Tavily
-    LG -->|Flux Image| Pollinations
-    LG -->|Rotate Fallback Keys| Groq
-    
-    %% LinkedIn Publishing
-    API -->|7. Publish / Delete| MCP
-    Scheduler -->|11. Auto Publish| MCP
-    MCP -->|9. Post URN / Status| SQL
-    MCP -->|8. Push shares & images| LinkedIn
+    LG -->|"Thread Save"| Saver
+    LG -->|"Search Web"| Tavily
+    LG -->|"Flux Image"| Pollinations
+    LG -->|"Groq LLM"| Groq
 ```
 
 ---
