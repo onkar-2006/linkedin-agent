@@ -215,3 +215,35 @@ Open `http://localhost:5173` in your browser.
 * **Upgraded Visual Assets**: Utilizes the premium 12B **Flux** model via Pollinations AI. Prompts are automatically enhanced to generate modern clay 3D renders, sleek dark mode vectors, or premium glassmorphic UI card designs.
 * **Auto-Scheduler Worker**: The background daemon worker thread checks the SQLite database every 10 seconds. When a post's `scheduled_time` is reached, it publishes the post automatically to LinkedIn.
 * **Binary Image Upload**: Supports uploading local/base64-encoded visual assets to LinkedIn via the binary image stream.
+
+---
+
+## 🌐 Deploy to Render (Blueprint Guide)
+
+Render supports automated, multi-service deployment via the [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml) blueprint. 
+
+### Step-by-Step Deployment:
+1. **Push your code** to your GitHub repository.
+2. Go to the [Render Dashboard](https://dashboard.render.com/) and click **New -> Blueprint**.
+3. Select your repository and click **Connect**.
+4. Render will read [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml), identify the services, and ask you for Environment Variables (like `TAVILY_API_KEY`, `GROQ_API_KEY`, etc.). Fill them in.
+5. Click **Apply** to spin up the services.
+6. Once the backend Web Service is live, copy its URL (e.g. `https://linkedin-autopilot-backend.onrender.com`).
+7. Update the `VITE_API_BASE` environment variable in your **frontend Static Site settings** on Render to point to `${YOUR_BACKEND_URL}/api`, and trigger a manual redeploy.
+8. Your full-stack platform is now live!
+
+---
+
+### ⚠️ Render Free Plan Limitations & Workarounds
+
+If you deploy this application under Render's **Free Plan**, you must configure the following to ensure the application behaves correctly:
+
+#### 1. Ephemeral Database Resets
+* **Problem**: Render's Free tier does not support persistent disks. This means your SQLite database (`database.db`) is stored inside the container's temporary memory. Whenever the container restarts or redeploys, **all chat history, scheduled posts, and user credentials will be cleared.**
+* **Solution**: For a 100% free setup with persistence, you can deploy the backend container to **Railway** (which supports free persistent volumes), or modify the backend to connect to a free external database like neon.tech or Supabase. Alternatively, upgrade the Render backend to a **Starter Web Service** ($5/month) and uncomment the `disk:` block in [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml#L27-L32) to mount a persistent disk volume.
+
+#### 2. Keeping the Post Scheduler Active (Avoiding Server Sleep)
+* **Problem**: Render puts Free web services to sleep after 15 minutes of inactivity. When the container sleeps, the background scheduler thread (`run_post_scheduler`) stops running, and **scheduled posts will not publish on time**.
+* **Solution**: Create a free account on [UptimeRobot](https://uptimerobot.com/) or [Cron-Job.org](https://cron-job.org/) and set up an HTTP monitor that pings your backend status endpoint (`https://your-backend.onrender.com/api/auth/linkedin/status`) every **10 to 12 minutes**. This keep-alive ping keeps your backend active 24/7 for free, allowing the background scheduler to publish scheduled posts on time!
+
+

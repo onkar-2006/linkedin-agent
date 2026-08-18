@@ -3,7 +3,7 @@ import uuid
 import logging
 import httpx
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from fastapi.responses import RedirectResponse as HTMLRedirect
 
 # Import Database, workflow tools, and Schemas
@@ -21,7 +21,7 @@ router = APIRouter()
 
 # --- Chat Agent Endpoint ---
 @router.post("/api/chat")
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(req: ChatRequest, x_user_urn: Optional[str] = Header(None)):
     """
     Initiates or resumes chat with the stateful agent.
     Runs LangGraph workflow and saves state transitions.
@@ -35,15 +35,17 @@ async def chat_endpoint(req: ChatRequest):
     
     # 1. Update the graph state if updates were sent (e.g. user approval buttons clicked)
     if req.state_update:
+        if x_user_urn:
+            req.state_update["user_urn"] = x_user_urn
         agent_graph.update_state(config, req.state_update)
         logger.info(f"Updated state for thread {conversation_id} with: {req.state_update}")
         
     # 2. Save user message to database if provided
     if req.message:
-        db.add_message(conversation_id, "user", req.message)
+        db.add_message(conversation_id, "user", req.message, user_urn=x_user_urn)
         # Update conversation title
         title = req.message[:35] + "..." if len(req.message) > 35 else req.message
-        db.create_conversation(conversation_id, title)
+        db.create_conversation(conversation_id, title, user_urn=x_user_urn)
         
         # Merge message into graph memory
         state = agent_graph.get_state(config)
@@ -85,7 +87,8 @@ async def chat_endpoint(req: ChatRequest):
             role="assistant",
             content=status_msg,
             thinking=thinking,
-            image_url=image_url
+            image_url=image_url,
+            user_urn=x_user_urn
         )
         
         # 5. Fetch updated state info to return to frontend
@@ -152,36 +155,37 @@ async def generate_image_endpoint(req: ImageRequest):
 
 # --- Post Management Endpoints ---
 @router.get("/api/posts")
-async def get_posts():
-    return db.get_posts()
-
+async def get_posts(x_user_urn: Optional[str] = Header(None)):
+    return db.get_posts(user_urn=x_user_urn)
+ 
 @router.delete("/api/posts/{post_id}")
 async def delete_post_endpoint(post_id: int):
     result = fastmcp_linkedin.delete_post(post_id)
     if "not found" in result:
         raise HTTPException(status_code=404, detail=result)
     return {"status": "success", "message": result}
-
+ 
 @router.post("/api/posts/publish")
-async def publish_now_endpoint(req: PublishRequest):
-    result = fastmcp_linkedin.publish_post(text=req.text, image_url=req.image_url)
+async def publish_now_endpoint(req: PublishRequest, x_user_urn: Optional[str] = Header(None)):
+    result = fastmcp_linkedin.publish_post(text=req.text, image_url=req.image_url, user_urn=x_user_urn)
     return {"status": "success", "message": result}
-
+ 
 @router.post("/api/posts/schedule")
-async def schedule_endpoint(req: ScheduleRequest):
+async def schedule_endpoint(req: ScheduleRequest, x_user_urn: Optional[str] = Header(None)):
     result = fastmcp_linkedin.schedule_post(
         text=req.text,
         publish_time=req.publish_time,
-        image_url=req.image_url
+        image_url=req.image_url,
+        user_urn=x_user_urn
     )
     if "Error" in result:
         raise HTTPException(status_code=400, detail=result)
     return {"status": "success", "message": result}
-
+ 
 # --- Conversations History Endpoints ---
 @router.get("/api/conversations")
-async def list_conversations():
-    return db.get_conversations()
+async def list_conversations(x_user_urn: Optional[str] = Header(None)):
+    return db.get_conversations(user_urn=x_user_urn)
 
 @router.get("/api/conversations/{conversation_id}/messages")
 async def get_conversation_messages(conversation_id: str):
@@ -233,16 +237,25 @@ async def linkedin_auth_url():
 @router.get("/api/auth/linkedin/mock")
 async def linkedin_mock_auth():
     """Mocks LinkedIn login and automatically saves mock credentials for local testing."""
+    mock_urn = "urn:li:person:mock_user_john_doe"
     db.save_credentials(
         access_token="mock_access_token_12345",
         expires_at=int(datetime.utcnow().timestamp()) + 3600 * 24 * 30, # 30 days
-        member_urn="urn:li:person:mock_user_john_doe",
+        member_urn=mock_urn,
         first_name="John Doe",
         last_name="(Demo)",
         profile_picture="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256"
     )
     frontend_url = os.getenv("FRONTEND_REDIRECT", "http://localhost:5173")
-    return HTMLRedirect(f"{frontend_url}?auth=success")
+    import urllib.parse
+    query = urllib.parse.urlencode({
+        "auth": "success",
+        "urn": mock_urn,
+        "first_name": "John Doe",
+        "last_name": "(Demo)",
+        "picture": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256"
+    })
+    return HTMLRedirect(f"{frontend_url}?{query}")
 
 
 @router.get("/api/auth/linkedin/callback")
@@ -304,23 +317,31 @@ async def linkedin_callback(code: str, state: str):
                 profile_picture=profile_picture
             )
             
-            frontend_url = os.getenv("FRONTEND_REDIRECT", "http://localhost:3000")
-            return HTMLRedirect(f"{frontend_url}?auth=success")
+            frontend_url = os.getenv("FRONTEND_REDIRECT", "http://localhost:5173")
+            import urllib.parse
+            query = urllib.parse.urlencode({
+                "auth": "success",
+                "urn": member_urn,
+                "first_name": first_name,
+                "last_name": last_name,
+                "picture": profile_picture or ""
+            })
+            return HTMLRedirect(f"{frontend_url}?{query}")
     except Exception as e:
         logger.error(f"Callback error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-
+ 
+ 
 @router.get("/api/auth/linkedin/status")
-async def linkedin_status():
-    """Returns connected profile status info."""
-    creds = db.get_credentials()
+async def linkedin_status(x_user_urn: Optional[str] = Header(None)):
+    """Returns connected profile status info for a user."""
+    creds = db.get_credentials(x_user_urn)
     if not creds:
         return {"connected": False}
         
     expired = creds['expires_at'] < int(datetime.utcnow().timestamp())
     if expired:
-        db.clear_credentials()
+        db.clear_credentials(x_user_urn)
         return {"connected": False}
         
     return {
@@ -330,8 +351,8 @@ async def linkedin_status():
         "profile_picture": creds.get("profile_picture"),
         "member_urn": creds.get("member_urn")
     }
-
+ 
 @router.post("/api/auth/linkedin/disconnect")
-async def linkedin_disconnect():
-    db.clear_credentials()
+async def linkedin_disconnect(x_user_urn: Optional[str] = Header(None)):
+    db.clear_credentials(x_user_urn)
     return {"status": "success"}

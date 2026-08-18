@@ -1,0 +1,47 @@
+services:
+  # 1. Backend Web Service (FastAPI)
+  - type: web
+    name: linkedin-autopilot-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    rootDir: backend
+    plan: free
+    envVars:
+      - key: DATABASE_PATH
+        value: /app/database.db # Ephemeral local database for Render Free Plan
+      - key: PORT
+        value: 8000
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_API_KEY_FALLBACK_1
+        sync: false
+      - key: GROQ_API_KEY_FALLBACK_2
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_REDIRECT_URI
+        sync: false
+      - key: FRONTEND_REDIRECT
+        sync: false
+    # NOTE: Persistent disks are not supported on Render's Free Plan.
+    # If you upgrade to a paid plan, uncomment the lines below to keep your data persistent:
+    # disk:
+    #   name: sqlite-db
+    #   mountPath: /var/data
+    #   sizeGB: 1
+
+  # 2. Frontend Static Site Service (Vite React)
+  - type: web
+    name: linkedin-autopilot-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    rootDir: frontend
+    envVars:
+      - key: VITE_API_BASE
+        value: https://linkedin-autopilot-backend.onrender.com/api # Replace with your deployed backend API URL

@@ -17,3 +17,4 @@ class AgentState(BaseModel):
     posting_result: Optional[str] = None
     intent: str = "pending"
     chitchat_response: Optional[str] = None
+    user_urn: Optional[str] = None

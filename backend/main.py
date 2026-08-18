@@ -61,7 +61,8 @@ def run_post_scheduler():
                         
                         result = fastmcp_linkedin.publish_post(
                             text=post['content'],
-                            image_url=post['image_url']
+                            image_url=post['image_url'],
+                            user_urn=post.get('user_urn')
                         )
                         logger.info(f"Scheduler publish result: {result}")
                         

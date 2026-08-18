@@ -17,9 +17,9 @@ mcp = FastMCP("LinkedIn Server")
 # Initialize Database Manager
 db = DatabaseManager()
 
-def get_linkedin_client():
-    """Helper to check if real credentials exist and are valid."""
-    creds = db.get_credentials()
+def get_linkedin_client(user_urn: Optional[str] = None):
+    """Helper to check if real credentials exist and are valid for a user."""
+    creds = db.get_credentials(user_urn)
     if not creds:
         return None
     # Check expiry
@@ -79,12 +79,12 @@ def upload_image_to_linkedin(access_token: str, author_urn: str, image_url: str)
         return None
 
 @mcp.tool()
-def publish_post(text: str, image_url: Optional[str] = None) -> str:
+def publish_post(text: str, image_url: Optional[str] = None, user_urn: Optional[str] = None) -> str:
     """
-    Publish a post to LinkedIn immediately.
+    Publish a post to LinkedIn immediately on behalf of a specific user.
     Requires active LinkedIn connection. Raises error if no credentials found.
     """
-    creds = get_linkedin_client()
+    creds = get_linkedin_client(user_urn)
     
     if not creds:
         raise ValueError("Error: No active LinkedIn connection found. Please log in with LinkedIn via the dashboard first.")
@@ -96,7 +96,7 @@ def publish_post(text: str, image_url: Optional[str] = None) -> str:
     if access_token.startswith("mock_"):
         import uuid
         mock_urn = f"urn:li:share:mock_{uuid.uuid4().hex[:12]}"
-        post_id = db.create_post(content=text, image_url=image_url, status='published', linkedin_urn=mock_urn)
+        post_id = db.create_post(content=text, image_url=image_url, status='published', linkedin_urn=mock_urn, user_urn=user_urn)
         return f"[Sandbox Mode] Post successfully published locally! LinkedIn URN: {mock_urn}"
     
     headers = {
@@ -137,25 +137,25 @@ def publish_post(text: str, image_url: Optional[str] = None) -> str:
         
         if res.status_code == 201:
             linkedin_urn = res.headers.get("x-restli-id", "urn:li:post:unknown")
-            post_id = db.create_post(content=text, image_url=image_url, status='published', linkedin_urn=linkedin_urn)
+            post_id = db.create_post(content=text, image_url=image_url, status='published', linkedin_urn=linkedin_urn, user_urn=user_urn)
             return f"[Real LinkedIn] Post successfully published! LinkedIn URN: {linkedin_urn}"
         else:
             err_msg = f"LinkedIn API error: {res.status_code} - {res.text}"
             logger.error(err_msg)
-            db.create_post(content=text, image_url=image_url, status='failed')
+            db.create_post(content=text, image_url=image_url, status='failed', user_urn=user_urn)
             return f"[Real LinkedIn] Failed to publish post. Error: {err_msg}"
     except Exception as e:
         logger.error(f"Exception during LinkedIn API call: {e}")
-        db.create_post(content=text, image_url=image_url, status='failed')
+        db.create_post(content=text, image_url=image_url, status='failed', user_urn=user_urn)
         return f"[Real LinkedIn] Failed to publish post due to an internal exception: {e}"
 
 @mcp.tool()
-def schedule_post(text: str, publish_time: str, image_url: Optional[str] = None) -> str:
+def schedule_post(text: str, publish_time: str, image_url: Optional[str] = None, user_urn: Optional[str] = None) -> str:
     """
     Schedules a post to be published on LinkedIn at a future date/time.
     publish_time: ISO 8601 formatted string (e.g. '2026-08-17T21:00:00')
     """
-    creds = get_linkedin_client()
+    creds = get_linkedin_client(user_urn)
     if not creds:
         raise ValueError("Error: No active LinkedIn connection found. Please log in with LinkedIn via the dashboard first.")
 
@@ -170,7 +170,8 @@ def schedule_post(text: str, publish_time: str, image_url: Optional[str] = None)
         content=text, 
         image_url=image_url, 
         status='scheduled', 
-        scheduled_time=dt_str
+        scheduled_time=dt_str,
+        user_urn=user_urn
     )
     return f"Post successfully scheduled for {dt_str} (Local Post ID: {post_id})."
 
@@ -188,11 +189,11 @@ def delete_post(post_id: int) -> str:
     return f"Successfully deleted/cancelled post {post_id}."
 
 @mcp.tool()
-def list_posts() -> List[Dict[str, Any]]:
+def list_posts(user_urn: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Retrieves all scheduled, drafted, and published posts.
     """
-    return db.get_posts()
+    return db.get_posts(user_urn=user_urn)
 
 if __name__ == "__main__":
     mcp.run()

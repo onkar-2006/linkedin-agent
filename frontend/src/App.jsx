@@ -5,7 +5,7 @@ import {
   ChevronUp, AlertCircle, LogOut, ArrowRight, UserCheck, AlertTriangle
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
 
 export default function App() {
   const [conversations, setConversations] = useState([]);
@@ -31,19 +31,43 @@ export default function App() {
   const [selectedScheduleTime, setSelectedScheduleTime] = useState('');
   const [showSidebar, setShowSidebar] = useState(true);
 
+  const [activeUserUrn, setActiveUserUrn] = useState(localStorage.getItem('activeUserUrn') || '');
   const messagesEndRef = useRef(null);
 
-  // Initialize
+  // Helper function to dynamically inject active user session headers
+  const fetchWithAuth = (url, options = {}) => {
+    const headers = { ...options.headers };
+    if (activeUserUrn) {
+      headers['X-User-URN'] = activeUserUrn;
+    }
+    return fetch(url, { ...options, headers });
+  };
+
+  // Parse URN credentials on callback redirection
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('auth') === 'success') {
+      const urn = params.get('urn');
+      if (urn) {
+        localStorage.setItem('activeUserUrn', urn);
+        setActiveUserUrn(urn);
+      }
+      // Strip credentials from address bar
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // Initialize and reload data when active user changes
   useEffect(() => {
     fetchConversations();
     fetchPosts();
     fetchLinkedinStatus();
-  }, []);
+  }, [activeUserUrn]);
 
   // Fetch conversations history
   const fetchConversations = async () => {
     try {
-      const res = await fetch(`${API_BASE}/conversations`);
+      const res = await fetchWithAuth(`${API_BASE}/conversations`);
       if (res.ok) {
         const data = await res.json();
         setConversations(data);
@@ -59,7 +83,7 @@ export default function App() {
   // Fetch LinkedIn connection status
   const fetchLinkedinStatus = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/linkedin/status`);
+      const res = await fetchWithAuth(`${API_BASE}/auth/linkedin/status`);
       if (res.ok) {
         const data = await res.json();
         setLinkedinStatus(data);
@@ -72,7 +96,7 @@ export default function App() {
   // Fetch posts from database
   const fetchPosts = async () => {
     try {
-      const res = await fetch(`${API_BASE}/posts`);
+      const res = await fetchWithAuth(`${API_BASE}/posts`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data);
@@ -86,7 +110,7 @@ export default function App() {
   const selectConversation = async (id) => {
     setActiveConversationId(id);
     try {
-      const res = await fetch(`${API_BASE}/conversations/${id}/messages`);
+      const res = await fetchWithAuth(`${API_BASE}/conversations/${id}/messages`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
@@ -108,7 +132,7 @@ export default function App() {
   // Connect to LinkedIn OAuth
   const connectLinkedIn = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/linkedin`);
+      const res = await fetchWithAuth(`${API_BASE}/auth/linkedin`);
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
@@ -123,8 +147,10 @@ export default function App() {
   // Disconnect from LinkedIn
   const disconnectLinkedIn = async () => {
     try {
-      await fetch(`${API_BASE}/auth/linkedin/disconnect`, { method: 'POST' });
-      fetchLinkedinStatus();
+      await fetchWithAuth(`${API_BASE}/auth/linkedin/disconnect`, { method: 'POST' });
+      localStorage.removeItem('activeUserUrn');
+      setActiveUserUrn('');
+      setLinkedinStatus({ connected: false });
     } catch (err) {
       console.error("Disconnect failed:", err);
     }
@@ -133,7 +159,7 @@ export default function App() {
   // Delete a post
   const deletePost = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/posts/${id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`${API_BASE}/posts/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchPosts();
       }
@@ -146,7 +172,7 @@ export default function App() {
   const deleteConversation = async (id, e) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`${API_BASE}/conversations/${id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`${API_BASE}/conversations/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchConversations();
         if (activeConversationId === id) {
@@ -173,7 +199,7 @@ export default function App() {
     setMessages(prev => [...prev, tempUserMsg]);
 
     try {
-      const res = await fetch(`${API_BASE}/chat`, {
+      const res = await fetchWithAuth(`${API_BASE}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -211,7 +237,7 @@ export default function App() {
     }
     
     try {
-      const res = await fetch(`${API_BASE}/chat`, {
+      const res = await fetchWithAuth(`${API_BASE}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -245,7 +271,7 @@ export default function App() {
   const generateDraftImage = async (msgId, text) => {
     setGeneratingImageId(msgId);
     try {
-      const res = await fetch(`${API_BASE}/agent/generate-image`, {
+      const res = await fetchWithAuth(`${API_BASE}/agent/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: msgId, draft_text: text })
@@ -272,7 +298,7 @@ export default function App() {
     }
     
     try {
-      const res = await fetch(`${API_BASE}/posts/publish`, {
+      const res = await fetchWithAuth(`${API_BASE}/posts/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, image_url: imgUrl })
@@ -303,7 +329,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/posts/schedule`, {
+      const res = await fetchWithAuth(`${API_BASE}/posts/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
