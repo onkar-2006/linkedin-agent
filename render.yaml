@@ -34,13 +34,3 @@ services:
     #   name: sqlite-db
     #   mountPath: /var/data
     #   sizeGB: 1
-
-  # 2. Frontend Static Site Service (Vite React)
-  - type: static
-    name: linkedin-autopilot-frontend
-    buildCommand: npm install && npm run build
-    publishPath: dist
-    rootDir: frontend
-    envVars:
-      - key: VITE_API_BASE
-        value: https://linkedin-autopilot-backend.onrender.com/api # Replace with your deployed backend API URL

@@ -218,19 +218,31 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🌐 Deploy to Render (Blueprint Guide)
+## 🌐 Deploy to Render
 
-Render supports automated, multi-service deployment via the [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml) blueprint. 
+We deploy the **FastAPI Backend** using the automated Blueprint [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml) blueprint, and deploy the **Vite React Frontend** separately as a Static Site.
 
-### Step-by-Step Deployment:
+### Step 1: Deploy Backend via Blueprint
 1. **Push your code** to your GitHub repository.
 2. Go to the [Render Dashboard](https://dashboard.render.com/) and click **New -> Blueprint**.
 3. Select your repository and click **Connect**.
-4. Render will read [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml), identify the services, and ask you for Environment Variables (like `TAVILY_API_KEY`, `GROQ_API_KEY`, etc.). Fill them in.
-5. Click **Apply** to spin up the services.
-6. Once the backend Web Service is live, copy its URL (e.g. `https://linkedin-autopilot-backend.onrender.com`).
-7. Update the `VITE_API_BASE` environment variable in your **frontend Static Site settings** on Render to point to `${YOUR_BACKEND_URL}/api`, and trigger a manual redeploy.
-8. Your full-stack platform is now live!
+4. Render will parse [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml) and prompt you for the backend environment variables (like `TAVILY_API_KEY`, `GROQ_API_KEY`, etc.). Fill them in.
+5. Click **Apply**.
+6. Once the backend Web Service is live, copy its URL (e.g. `https://linkedin-autopilot-backend-xxxx.onrender.com`).
+
+### Step 2: Deploy Frontend as Static Site
+1. On the Render Dashboard, click **New -> Static Site**.
+2. Select your repository and click **Connect**.
+3. Configure the Static Site settings:
+   * **Name**: `linkedin-autopilot-frontend`
+   * **Root Directory**: `frontend`
+   * **Build Command**: `npm install && npm run build`
+   * **Publish Directory**: `dist`
+4. Under the **Environment** tab, click **Add Environment Variable**:
+   * **Key**: `VITE_API_BASE`
+   * **Value**: `${YOUR_BACKEND_URL}/api` *(For example: `https://linkedin-autopilot-backend-xxxx.onrender.com/api`)*
+5. Click **Create Static Site**. Render will compile and serve your frontend static dashboard.
+
 
 ---
 
