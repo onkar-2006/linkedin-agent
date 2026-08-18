@@ -9,6 +9,12 @@ load_dotenv()
 # Add current folder to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Ensure console printing supports UTF-8 characters (emojis) on Windows
+import io
+if sys.platform.startswith('win'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from agent.workflow.workflow import agent_graph
 from agent.nodes.node import WorkflowNodes
 

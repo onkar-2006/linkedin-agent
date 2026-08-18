@@ -599,6 +599,11 @@ export default function App() {
                       </div>
                     )}
                     <p className="whitespace-pre-line">{msg.content}</p>
+                    {msg.image_url && (
+                      <div className="mt-3 rounded-xl overflow-hidden border border-slate-800 max-h-60 shadow-md">
+                        <img src={msg.image_url} alt="Generated visual preview" className="w-full object-cover" />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -682,7 +687,7 @@ export default function App() {
               <div className="glass-card border border-blue-500/20 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-fadein">
                 
                 {/* Node 1: research_and_draft interrupt (Human draft review) */}
-                {graphState.next.includes("research_and_draft") && (
+                {graphState.next.includes("wait_draft_approval") && (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
                       <Sparkles className="h-4 w-4" /> Review the Draft LinkedIn Post
@@ -741,7 +746,7 @@ export default function App() {
                 )}
 
                 {/* Node 2: ask_image_option interrupt (Image generation prompt) */}
-                {graphState.next.includes("ask_image_option") && (
+                {graphState.next.includes("wait_image_choice") && (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
                       <ImageIcon className="h-4 w-4 animate-bounce" /> Add Visual Graphic/Image?
@@ -767,7 +772,7 @@ export default function App() {
                 )}
 
                 {/* Node 3: generate_image interrupt (Image approval review) */}
-                {graphState.next.includes("generate_image") && (
+                {graphState.next.includes("wait_image_approval") && (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
                       <CheckCircle2 className="h-4 w-4 text-emerald-400 animate-pulse" /> Review Generated Graphic
@@ -793,7 +798,7 @@ export default function App() {
                 )}
 
                 {/* Node 4: posting_agent interrupt (Select schedule or immediate) */}
-                {graphState.next.includes("posting_agent") && (
+                {graphState.next.includes("wait_post_mode") && (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-amber-500 font-semibold text-sm">
                       <Clock className="h-4 w-4" /> Select Posting Mode
@@ -838,7 +843,7 @@ export default function App() {
                 )}
 
                 {/* Node 5: confirm_posting_prompt interrupt (Safety check / confirm immediate) */}
-                {graphState.next.includes("confirm_posting_prompt") && (
+                {graphState.next.includes("wait_post_confirmation") && (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-rose-500 font-semibold text-sm">
                       <AlertTriangle className="h-4 w-4 text-rose-500 animate-pulse" /> Final LinkedIn Publish Confirmation

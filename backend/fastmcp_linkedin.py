@@ -43,7 +43,7 @@ def upload_image_to_linkedin(access_token: str, author_urn: str, image_url: str)
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
-            "Linkedin-Version": "202401",
+            "Linkedin-Version": "202607",
             "X-Restli-Protocol-Version": "2.0.0"
         }
         init_payload = {
@@ -102,7 +102,7 @@ def publish_post(text: str, image_url: Optional[str] = None) -> str:
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
-        "Linkedin-Version": "202401",
+        "Linkedin-Version": "202607",
         "X-Restli-Protocol-Version": "2.0.0"
     }
 

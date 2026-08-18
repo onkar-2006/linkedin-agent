@@ -1,22 +1,155 @@
-# LinkedIn Agent Post Scheduler 🚀
+# LinkedIn Autopilot Agent Scheduler 🚀
 
-An AI-driven LinkedIn post generation and scheduling platform. Research trending topics, write engaging copywriting drafts, attach visual graphics, and schedule or publish posts to your real LinkedIn feed in one dashboard.
+An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashboard. Research trending topics, draft engaging copy, generate premium visual assets, and schedule or publish posts to your real LinkedIn feed—all in one unified platform.
 
 ---
 
-## 🛠 Tech Stack
-* **Frontend**: React (Vite) + Tailwind CSS + Lucide Icons.
-* **Backend**: FastAPI (Python) + LangGraph state-workflow + FastMCP LinkedIn server.
-* **Agent Integration**: Tavily Search API + Gemini / OpenAI Chat Models.
-* **Database**: SQLite.
+## ✨ Features
+* **AI Research & Copywriter**: Integrates Tavily Search with Groq model fallbacks (prioritizing `openai/gpt-oss-120b`, and falling back to `groq/compound` or `qwen/qwen3.6-27b`) to draft engaging, value-oriented LinkedIn posts.
+* **Human-in-the-Loop (HITL) Controls**: Pauses graph execution using LangGraph thread checkpointers to wait for user reviews on copywriting drafts, image choice, image approval, posting mode, and safety confirmations.
+* **Flux Visual Graphic Generator**: Connects to the premium 12B parameter **Flux model** via Pollinations AI. Automatically enhances prompts and applies dynamic random seeding to generate high-fidelity vectors, clay 3D illustrations, or modern glassmorphic card graphics for free.
+* **Autopilot Post Scheduler**: Runs a background worker daemon thread that checks SQLite every 10 seconds, automatically publishing posts to LinkedIn when their target scheduled release time is reached.
+* **Stateful Split-Pane UI**: Left pane manages scrollable chat feeds, prompts, and collapsible agent reasoning logs; right pane provides a dedicated workspace for draft copywriting, bound graphic rendering, and workflow button controls.
+* **Groq Key Rotation & Token Capping**: Auto-rotates multiple Groq API keys to bypass rate limits (429) and optimizes token counts by capping generations (`max_tokens=1000`) and compressing Tavily search payloads.
+* **Sandbox / Mock Authorization Mode**: Falls back to a local sandbox test account (John Doe demo profile) when LinkedIn client IDs are omitted in the configuration.
+
+---
+
+## 🏗️ System Architecture
+
+The following diagram illustrates how the **React Frontend**, **FastAPI Backend**, **LangGraph Workflow**, **SQLite database**, and external API providers communicate:
+
+```mermaid
+graph TB
+    subgraph Client ["React Frontend UI"]
+        UI["Split-Pane Dashboard"]
+        WS["Workspace Panel"]
+    end
+
+    subgraph Server ["FastAPI Backend"]
+        API["FastAPI Router"]
+        Scheduler["Background daemon Scheduler Thread"]
+        MCP["FastMCP LinkedIn Server"]
+    end
+
+    subgraph Database ["SQLite DB"]
+        SQL[("database.db")]
+    end
+
+    subgraph Agent ["LangGraph Engine"]
+        LG["StateGraph Graph"]
+        Saver["SQLite MemorySaver checkpointer"]
+    end
+
+    subgraph External ["External APIs"]
+        Groq["Groq LLM Fallback Chain"]
+        Tavily["Tavily Search API"]
+        Pollinations["Pollinations AI Flux Generator"]
+        LinkedIn["LinkedIn API Gateway"]
+    end
+
+    %% Client Interactions
+    UI -->|1. Chat Prompt / state_update| API
+    WS -->|2. HITL Approval Actions| API
+    API -->|12. Render messages & draft / image| UI
+    
+    %% API Routing
+    API -->|3. Get/Set state| LG
+    API -->|4. Persist logs| SQL
+    Scheduler -->|10. Check due posts| SQL
+    
+    %% LangGraph Routing
+    LG -->|5. Thread Save| Saver
+    LG -->|6. Execute Node Logic| External
+    
+    %% Tool execution
+    LG -->|Tavily Research| Tavily
+    LG -->|Flux Image| Pollinations
+    LG -->|Rotate Fallback Keys| Groq
+    
+    %% LinkedIn Publishing
+    API -->|7. Publish / Delete| MCP
+    Scheduler -->|11. Auto Publish| MCP
+    MCP -->|9. Post URN / Status| SQL
+    MCP -->|8. Push shares & images| LinkedIn
+```
+
+---
+
+## 🧠 LangGraph Workflow Architecture (HITL)
+
+The core backend agent is built as a state machine using **LangGraph**. It utilizes conditional edges and `interrupt_after` blocks on user reviews to enable a true **Human-in-the-Loop (HITL)** experience:
+
+```mermaid
+graph TD
+    Start["User Prompt"] --> classify_intent{"Classify Intent Node"}
+    
+    %% Intent Branching
+    classify_intent -->|chitchat| respond_chitchat["Respond Chitchat Node"]
+    classify_intent -->|post request| research_and_draft["Research & Copy Draft Node"]
+    
+    respond_chitchat --> End["END"]
+    
+    %% Research & Draft
+    research_and_draft -->|Web search + LLM Copywrite| wait_draft_approval("WAIT: Draft Review Interrupt")
+    
+    %% HITL Draft review
+    wait_draft_approval -->|Revision requested| research_and_draft
+    wait_draft_approval -->|Approved| ask_image_option["Ask Graphic Option Node"]
+    
+    ask_image_option --> wait_image_choice("WAIT: Image Choice Interrupt")
+    
+    %% HITL Image Choice
+    wait_image_choice -->|No / Text Only| posting_agent["Posting Agent Node"]
+    wait_image_choice -->|Yes / Generate Image| generate_image["Generate Visual Graphic Node"]
+    
+    %% Image generation
+    generate_image -->|Flux model prompt| wait_image_approval("WAIT: Image Review Interrupt")
+    
+    %% HITL Image Approval
+    wait_image_approval -->|Regenerate Image| generate_image
+    wait_image_approval -->|Approve & Proceed| posting_agent
+    
+    %% Posting Agent mode selection
+    posting_agent -->|Final review & hashtags| wait_post_mode("WAIT: Post Mode Interrupt")
+    
+    %% HITL Post Mode
+    wait_post_mode -->|Scheduled| schedule_action["Schedule Post Node"]
+    wait_post_mode -->|Immediate| confirm_posting_prompt["Safety Confirm Node"]
+    
+    confirm_posting_prompt --> wait_post_confirmation("WAIT: Post Confirm Interrupt")
+    
+    %% HITL Publish confirm
+    wait_post_confirmation -->|Cancel| END_POST["END"]
+    wait_post_confirmation -->|Yes, Publish Now| publish_action["Publish Action Node"]
+    
+    publish_action --> End
+    schedule_action --> End
+```
+
+### LangGraph Workflow Features:
+1. **Thread Checkpointer (`MemorySaver`)**: Session history and node configurations are preserved between api calls. Resuming is as simple as calling `agent_graph.invoke(None, config=config)` after updating state.
+2. **Dynamic Key Rotation**: If a Groq API key is rate-limited (`429 Too Many Requests`), the agent automatically rotates to fallback keys configured in `.env` to prevent crashes.
+3. **Token Capping**:
+   * Outbound generations are restricted using `max_tokens=1000`.
+   * Input tokens are reduced by compressing Tavily search results to 3 items and truncating snippets to 400 characters max.
+
+---
+
+## 🛠️ Tech Stack
+* **Frontend**: React (Vite) styled with Tailwind CSS v4 and Lucide icons.
+* **Backend**: FastAPI (Python 3.10+) running async endpoints.
+* **Orchestration**: LangGraph state machine.
+* **AI Tool Integration**: Tavily Search (Web search) + Pollinations AI (Flux image generator) + Groq (LLM).
+* **Database**: SQLite3.
 
 ---
 
 ## ⚡ Quick Start
 
 ### 1. Prerequisites
-* Install [Docker & Docker Compose](https://docs.docker.com/get-docker/) (for containerized setup).
-* Or run locally using Python 3.11+ and Node.js 18+.
+* Install [Docker & Docker Compose](https://docs.docker.com/get-docker/) (Recommended)
+* Or run locally using Python 3.10+ and Node.js 18+.
 
 ### 2. Configure Environment Variables
 Copy `.env.example` to `.env` in the root directory and configure:
@@ -24,15 +157,17 @@ Copy `.env.example` to `.env` in the root directory and configure:
 # Tavily API Key for real-time web search
 TAVILY_API_KEY=your_tavily_key
 
-# Select either OpenAI or Gemini (Gemini is preferred if both are set)
-GEMINI_API_KEY=your_gemini_api_key
-OPENAI_API_KEY=your_openai_api_key
+# Groq API Key and Fallbacks for model rotation
+GROQ_API_KEY=your_primary_groq_key
+GROQ_API_KEY_FALLBACK_1=your_fallback_groq_key_1
+GROQ_API_KEY_FALLBACK_2=your_fallback_groq_key_2
 
 # Real LinkedIn posting credentials
 LINKEDIN_CLIENT_ID=your_linkedin_client_id
 LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
 LINKEDIN_REDIRECT_URI=http://localhost:8000/api/auth/linkedin/callback
 ```
+*Note: If `LINKEDIN_CLIENT_ID` is left empty, the application automatically defaults to a sandbox mock login environment (John Doe profile) for local testing.*
 
 ### 3. Setting Up Real LinkedIn API Credentials
 To enable real LinkedIn publishing:
@@ -50,20 +185,25 @@ To enable real LinkedIn publishing:
 ## 🐳 Running the Application
 
 ### Option A: Run with Docker (Recommended)
-From the root directory, start the services in one command:
+From the root directory, start both frontend and backend in one command:
 ```bash
 docker-compose up --build
 ```
-* **Frontend**: `http://localhost:3000`
-* **Backend API**: `http://localhost:8000`
+* **Frontend Dashboard**: `http://localhost:3000`
+* **Backend Swagger API docs**: `http://localhost:8000/docs`
 
 ### Option B: Run Locally (Development)
 
-#### Start FastMCP and Backend API:
+#### Start FastAPI Backend & MCP Server:
 ```bash
 cd backend
-# Create and activate virtual environment, install requirements:
+# Create and activate a virtual environment:
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install requirements:
 pip install -r requirements.txt
+
 # Run the FastAPI server:
 python main.py
 ```
@@ -78,13 +218,7 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🚀 Deployment Guide
-You can deploy this containerized app to any cloud provider:
-
-### Deploy to Render or Railway:
-1. Link your GitHub repository containing this codebase.
-2. Create two services:
-   * **Web Service for Backend** pointing to `./backend/Dockerfile` (Expose port `8000`).
-   * **Web Service for Frontend** pointing to `./frontend/Dockerfile` (Expose port `80`).
-3. Set your Environment Variables in the backend settings (from your `.env`).
-4. Set the `LINKEDIN_REDIRECT_URI` to `https://your-backend-domain.com/api/auth/linkedin/callback`.
+## 🚀 Key Implementation Features
+* **Upgraded Visual Assets**: Utilizes the premium 12B **Flux** model via Pollinations AI. Prompts are automatically enhanced to generate modern clay 3D renders, sleek dark mode vectors, or premium glassmorphic UI card designs.
+* **Auto-Scheduler Worker**: The background daemon worker thread checks the SQLite database every 10 seconds. When a post's `scheduled_time` is reached, it publishes the post automatically to LinkedIn.
+* **Binary Image Upload**: Supports uploading local/base64-encoded visual assets to LinkedIn via the binary image stream.

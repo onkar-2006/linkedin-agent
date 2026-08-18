@@ -10,9 +10,9 @@ A good LinkedIn post has:
 
 INSTRUCTIONS:
 - First, review the research results.
-- Write down your 'THINKING' process explaining how you plan to structure the post, what news items you will prioritize, and why.
-- Then, draft the post. Keep the tone professional, insightful, and engaging.
-- Do not exceed 3000 characters.
+- Write down your 'THINKING' process explaining how you plan to structure the post, what news items you will prioritize, and why. Wrap this entire thinking process inside <thinking>...</thinking> tags.
+- Then, draft the post. Keep the tone professional, insightful, and engaging. Wrap the actual post draft inside <draft>...</draft> tags.
+- CRITICAL LIMIT: The entire generated post draft must be strictly under 2800 characters (including spaces, emojis, and punctuation) to fit within LinkedIn's API limits. Aim for 1000-1800 characters for optimal readability and mobile presentation.
 """
 
 SYSTEM_POST_PROMPT = """You are the LinkedIn Publishing Agent. Your job is to do a final review and format the draft post before it is sent to the LinkedIn API.
@@ -21,16 +21,22 @@ Your duties:
 1. Ensure there are no placeholder elements in the text.
 2. Add 3-5 highly relevant professional hashtags at the very bottom.
 3. Optimize formatting (spacing, emojis) to ensure readability on mobile and desktop feeds.
-4. Output the finalized post text ready for publishing.
+4. CRITICAL LIMIT: Ensure the final output is strictly under 2900 characters. If the input draft exceeds this, trim and compress the body copy immediately to make sure it complies with this limit.
+5. Output the finalized post text ready for publishing.
 """
 
-IMAGE_PROMPT_GENERATOR_PROMPT = """You are a creative visual director. 
-Review the LinkedIn post draft below, and write a detailed, highly descriptive prompt for generating a matching professional visual graphic, digital art, or photograph.
-Describe the subject, setting, style, mood, colors, and framing (e.g. 'isometric digital art of...', 'high-resolution corporate photography showing...'). 
-Do not write commentary, output ONLY the image prompt itself.
+IMAGE_PROMPT_GENERATOR_PROMPT = """You are a creative visual director.
+Review the LinkedIn post draft below, and write a detailed, highly descriptive prompt for generating a matching professional, premium visual graphic.
+Avoid generic or awkward corporate stock photos. Instead, suggest high-quality designs such as:
+- 'A 3D clay-render illustration of...' (cute, clean, modern, with soft lighting and smooth textures)
+- 'A premium glassmorphic UI card showing...' (frosted glass elements, glowing translucent buttons, neon gradient highlights)
+- 'A sleek digital vector illustration of...' (minimalist, flat design, vibrant gradients, clean lines on a dark blue background)
+- 'A futuristic dark mode graphic showing...' (neon cyan/purple lighting, high-tech abstract diagrams)
+
+Describe the subject, setting, style, mood, colors, and framing. Do not write commentary, output ONLY the single descriptive image prompt itself.
 
 Format your output as a single descriptive sentence, for example:
-'A high-tech digital illustration of glowing neural pathways connecting on a dark blue background, professional, vector art style'
+'A sleek digital vector illustration of glowing neural pathways connecting on a dark blue background, vibrant gradients, professional flat design style'
 """
 
 SYSTEM_CLASSIFIER_PROMPT = """You are an intent classifier for a LinkedIn scheduler assistant.

@@ -27,7 +27,11 @@ async def chat_endpoint(req: ChatRequest):
     Runs LangGraph workflow and saves state transitions.
     """
     conversation_id = req.conversation_id or str(uuid.uuid4())
-    config = {"configurable": {"thread_id": conversation_id}}
+    config = {
+        "configurable": {"thread_id": conversation_id},
+        "metadata": {"conversation_id": conversation_id},
+        "tags": [conversation_id]
+    }
     
     # 1. Update the graph state if updates were sent (e.g. user approval buttons clicked)
     if req.state_update:

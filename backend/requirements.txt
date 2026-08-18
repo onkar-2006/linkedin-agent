@@ -12,3 +12,4 @@ httpx>=0.24.0
 requests>=2.31.0
 langchain-mcp-adapters>=0.1.0
 sqlite3-api>=0.1.0; python_version < "3.0" # just fallback, standard library sqlite3 is included in python
+langsmith>=0.1.0
