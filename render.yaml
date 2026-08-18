@@ -36,9 +36,8 @@ services:
     #   sizeGB: 1
 
   # 2. Frontend Static Site Service (Vite React)
-  - type: web
+  - type: static
     name: linkedin-autopilot-frontend
-    env: static
     buildCommand: npm install && npm run build
     publishPath: dist
     rootDir: frontend
