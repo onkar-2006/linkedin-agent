@@ -3,6 +3,7 @@ import uuid
 import logging
 import httpx
 from datetime import datetime
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, HTTPException, Header
 from fastapi.responses import RedirectResponse as HTMLRedirect
 

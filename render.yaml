@@ -9,7 +9,7 @@ services:
     plan: free
     envVars:
       - key: DATABASE_PATH
-        value: /app/database.db # Ephemeral local database for Render Free Plan
+        value: database.db # Ephemeral local database for Render Free Plan
       - key: PORT
         value: 8000
       - key: TAVILY_API_KEY
