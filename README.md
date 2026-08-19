@@ -6,14 +6,33 @@ An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashb
 
 ---
 
-## ✨ Features
-* **AI Research & Copywriter**: Integrates Tavily Search with Groq model fallbacks (prioritizing `openai/gpt-oss-120b`, and falling back to `groq/compound` or `qwen/qwen3.6-27b`) to draft engaging, value-oriented LinkedIn posts.
-* **Human-in-the-Loop (HITL) Controls**: Pauses graph execution using LangGraph thread checkpointers to wait for user reviews on copywriting drafts, image choice, image approval, posting mode, and safety confirmations.
-* **Flux Visual Graphic Generator**: Connects to the premium 12B parameter **Flux model** via Pollinations AI. Automatically enhances prompts and applies dynamic random seeding to generate high-fidelity vectors, clay 3D illustrations, or modern glassmorphic card graphics for free.
-* **Autopilot Post Scheduler**: Runs a background worker daemon thread that checks SQLite every 10 seconds, automatically publishing posts to LinkedIn when their target scheduled release time is reached.
-* **Stateful Split-Pane UI**: Left pane manages scrollable chat feeds, prompts, and collapsible agent reasoning logs; right pane provides a dedicated workspace for draft copywriting, bound graphic rendering, and workflow button controls.
-* **Groq Key Rotation & Token Capping**: Auto-rotates multiple Groq API keys to bypass rate limits (429) and optimizes token counts by capping generations (`max_tokens=1000`) and compressing Tavily search payloads.
-* **Sandbox / Mock Authorization Mode**: Falls back to a local sandbox test account (John Doe demo profile) when LinkedIn client IDs are omitted in the configuration.
+## ✨ Key Features & Engineering Highlights (Recruiter Cheat Sheet)
+
+This project demonstrates a production-grade AI agent architecture, prioritizing stateful session management, resilience, security, and developer operations:
+
+### 🧠 Stateful AI Workflows & Human-in-the-Loop (HITL) Controls
+* **LangGraph State Machine**: Leverages a structured `StateGraph` workflow engine to orchestrate step-by-step copywriting, search, graphics generation, and scheduling pipelines.
+* **Interactive Approval Gates**: Uses thread checkpointer memory (`MemorySaver`) to implement true Human-in-the-Loop (HITL) architecture. The agent pauses graph execution at critical milestones (reviewing drafts, image selection, scheduling confirmation) and resumes cleanly once the user submits their choices.
+* **Contextual Copy Revisions**: Employs a specialized editor prompt (`SYSTEM_REVISION_PROMPT`) inside the drafting node. If a user rejects a draft, the node dynamically bypasses generic web search and evaluates both the existing draft and revision feedback, updating the text seamlessly.
+
+### 🔒 Enterprise-Ready Multi-Tenant Architecture
+* **Isolated User Contexts**: Refactored the database schema and query layers to support multi-user operations. Conversations, post drafts, scheduled events, and LinkedIn tokens are partitioned securely under the user's specific member URN (`user_urn` tracking).
+* **Authenticated Routing**: FastAPI endpoints extract identity tokens via `X-User-URN` request headers. The React client intercepts redirect tokens on login and encapsulates all API requests within a secure session context.
+* **Multi-Account Background Scheduler**: The background polling daemon thread handles multi-user job queues. It queries pending posts every 10 seconds, fetches the respective owner's publishing credentials context, and schedules API dispatches.
+
+### 🛡️ Production-Grade API Resilience
+* **Automated Key Rotation (Rate Limit Bypass)**: Implemented an active failover LLM manager that rotates through a chain of primary and fallback Groq API keys if a `429 Too Many Requests` error is encountered.
+* **Token Optimization & Cost Controls**: Limits prompt token bloat by dynamically trimming Tavily search payloads to 3 results/400 characters max per snippet, and restricts LLM generation sizes (`max_tokens=1000`) to conserve API credit limits.
+* **Mock Sandbox Capability**: Includes a seamless OAuth fallback mechanism, letting recruiters or developers review client features using a mock sandbox profile (John Doe) without requiring active LinkedIn client ID credentials.
+
+### 🎨 Graphic Design Asset Pipeline
+* **Flux Visual Engine**: Connects to the high-fidelity 12B parameter **Flux model** via Pollinations AI. 
+* **Dynamic Prompt Enhancer**: Employs structural prompt engineering (`enhance=true`) and random URL seeding to generate clay 3D objects, modern glassmorphic card layouts, or flat vector graphics instead of generic stock photos.
+
+### 🐳 DevOps & Cloud Infrastructure
+* **Render Blueprints (`render.yaml`)**: Deploys the Python FastAPI container stack automatically using Render Blueprints.
+* **Resilient Storage Fallbacks**: Uses defensive try/except handling to check write privileges. If deploying to Render's Free tier (where persistent volume disks are disabled and root-level folders are read-only), the app gracefully falls back to local workspace SQLite paths to avoid startup crashes.
+* **Dockerized Workspaces**: Out-of-the-box support for multi-container coordination using Docker Compose (`docker-compose.yml`).
 
 ---
 
