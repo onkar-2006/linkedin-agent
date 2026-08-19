@@ -2,6 +2,8 @@
 
 An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashboard. Research trending topics, draft engaging copy, generate premium visual assets, and schedule or publish posts to your real LinkedIn feed—all in one unified platform.
 
+**Live Demo Dashboard**: [https://linkedin-autopilot-frontend.onrender.com/](https://linkedin-autopilot-frontend.onrender.com/)
+
 ---
 
 ## ✨ Features
