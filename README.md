@@ -2,37 +2,21 @@
 
 An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashboard. Research trending topics, draft engaging copy, generate premium visual assets, and schedule or publish posts to your real LinkedIn feed—all in one unified platform.
 
-**Live Demo Dashboard**: [https://linkedin-autopilot-frontend.onrender.com/](https://linkedin-autopilot-frontend.onrender.com/)
+**Live Demo Dashboard**: [https://linkedin-autopilot-frontend.onrender.com/](https://linkedin-autopilot-frontend.onrender.com/)  
+**Video Demo Walkthrough**: [Google Drive Link](https://drive.google.com/file/d/1ttBlcr_xyVL7LEXDbzJMSVjcCU-JiU7E/view?usp=sharing)
 
 ---
 
-## ✨ Key Features & Engineering Highlights (Recruiter Cheat Sheet)
+## ✨ Key Features & Engineering Highlights
 
-This project demonstrates a production-grade AI agent architecture, prioritizing stateful session management, resilience, security, and developer operations:
-
-### 🧠 Stateful AI Workflows & Human-in-the-Loop (HITL) Controls
-* **LangGraph State Machine**: Leverages a structured `StateGraph` workflow engine to orchestrate step-by-step copywriting, search, graphics generation, and scheduling pipelines.
-* **Interactive Approval Gates**: Uses thread checkpointer memory (`MemorySaver`) to implement true Human-in-the-Loop (HITL) architecture. The agent pauses graph execution at critical milestones (reviewing drafts, image selection, scheduling confirmation) and resumes cleanly once the user submits their choices.
-* **Contextual Copy Revisions**: Employs a specialized editor prompt (`SYSTEM_REVISION_PROMPT`) inside the drafting node. If a user rejects a draft, the node dynamically bypasses generic web search and evaluates both the existing draft and revision feedback, updating the text seamlessly.
-
-### 🔒 Enterprise-Ready Multi-Tenant Architecture
-* **Isolated User Contexts**: Refactored the database schema and query layers to support multi-user operations. Conversations, post drafts, scheduled events, and LinkedIn tokens are partitioned securely under the user's specific member URN (`user_urn` tracking).
-* **Authenticated Routing**: FastAPI endpoints extract identity tokens via `X-User-URN` request headers. The React client intercepts redirect tokens on login and encapsulates all API requests within a secure session context.
-* **Multi-Account Background Scheduler**: The background polling daemon thread handles multi-user job queues. It queries pending posts every 10 seconds, fetches the respective owner's publishing credentials context, and schedules API dispatches.
-
-### 🛡️ Production-Grade API Resilience
-* **Automated Key Rotation (Rate Limit Bypass)**: Implemented an active failover LLM manager that rotates through a chain of primary and fallback Groq API keys if a `429 Too Many Requests` error is encountered.
-* **Token Optimization & Cost Controls**: Limits prompt token bloat by dynamically trimming Tavily search payloads to 3 results/400 characters max per snippet, and restricts LLM generation sizes (`max_tokens=1000`) to conserve API credit limits.
-* **Mock Sandbox Capability**: Includes a seamless OAuth fallback mechanism, letting recruiters or developers review client features using a mock sandbox profile (John Doe) without requiring active LinkedIn client ID credentials.
-
-### 🎨 Graphic Design Asset Pipeline
-* **Flux Visual Engine**: Connects to the high-fidelity 12B parameter **Flux model** via Pollinations AI. 
-* **Dynamic Prompt Enhancer**: Employs structural prompt engineering (`enhance=true`) and random URL seeding to generate clay 3D objects, modern glassmorphic card layouts, or flat vector graphics instead of generic stock photos.
-
-### 🐳 DevOps & Cloud Infrastructure
-* **Render Blueprints (`render.yaml`)**: Deploys the Python FastAPI container stack automatically using Render Blueprints.
-* **Resilient Storage Fallbacks**: Uses defensive try/except handling to check write privileges. If deploying to Render's Free tier (where persistent volume disks are disabled and root-level folders are read-only), the app gracefully falls back to local workspace SQLite paths to avoid startup crashes.
-* **Dockerized Workspaces**: Out-of-the-box support for multi-container coordination using Docker Compose (`docker-compose.yml`).
+* **Stateful LangGraph Workflows**: Orchestrates post copywriting, topic research, and visual generation using stateful graph logic.
+* **Human-in-the-Loop (HITL)**: Uses thread checkpointer interrupts to pause execution for user reviews on copy drafts, image selections, and publish approvals.
+* **Contextual Copy Revisions**: Automatically evaluates previous drafts and user revision requests without triggering redundant web searches.
+* **Isolated Multi-User Contexts**: Securely partitions conversations, credentials, and schedule queues by the user's LinkedIn member URN (`X-User-URN`).
+* **Resilient Key Rotation Chain**: Automatically rotates fallback Groq API keys on rate-limit HTTP 429 errors and optimizes prompt token sizes.
+* **Autopilot Job Scheduler**: Background daemon thread checks the SQLite queue every 10 seconds to publish scheduled posts on time.
+* **Flux Visuals Pipeline**: Generates flat vector graphics, clay 3D objects, or modern glassmorphic cards using enhanced Flux prompts and dynamic seeding.
+* **DevOps Ready**: Out-of-the-box Render Blueprint config (`render.yaml`) and Docker Compose scripts for containerized hosting.
 
 ---
 
@@ -278,5 +262,24 @@ If you deploy this application under Render's **Free Plan**, you must configure 
 #### 2. Keeping the Post Scheduler Active (Avoiding Server Sleep)
 * **Problem**: Render puts Free web services to sleep after 15 minutes of inactivity. When the container sleeps, the background scheduler thread (`run_post_scheduler`) stops running, and **scheduled posts will not publish on time**.
 * **Solution**: Create a free account on [UptimeRobot](https://uptimerobot.com/) or [Cron-Job.org](https://cron-job.org/) and set up an HTTP monitor that pings your backend status endpoint (`https://your-backend.onrender.com/api/auth/linkedin/status`) every **10 to 12 minutes**. This keep-alive ping keeps your backend active 24/7 for free, allowing the background scheduler to publish scheduled posts on time!
+
+---
+
+## 🔄 Example Agent Workflow (Step-by-Step)
+
+The following sequence describes the logical path of a single post creation workflow inside the platform:
+
+1. **User Request**: The user enters a topic in the chat (e.g. *"Draft a post explaining LangGraph checkpoints"*).
+2. **Topic Research**: The agent initiates a Tavily search query, gathering live documentation, release logs, or news summaries.
+3. **Drafting Copy**: The agent passes the research payload to the LLM (prioritizing `openai/gpt-oss-120b` with fallbacks) to write a hook-structured LinkedIn post. The workflow halts on a LangGraph interrupt gate.
+4. **Draft Review (Human-in-the-Loop)**:
+   * **Rejection**: If the user submits revision feedback (e.g., *"Make it more engaging"*), the graph routes back to the draft node. The agent evaluates the previous draft context, generates an updated version, and halts again for approval.
+   * **Approval**: The user approves the draft copy, resuming the graph.
+5. **Image Choice**: The agent prompts the user to select if they want a graphic image to accompany the post.
+   * If yes, the agent synthesizes a visual description prompt, calls the **Flux generator**, renders the clay 3D or glassmorphic layout, and halts for visual approval.
+6. **Publishing Option**: Once the copy and visual assets are confirmed, the user chooses between **Immediate** publishing or **Scheduled** release.
+7. **Execution**:
+   * **Immediate**: The post is sent directly to the LinkedIn API and is live instantly.
+   * **Scheduled**: The post is added to the SQLite queue with a future ISO timestamp. The backend daemon scheduler detects the entry and dispatches it to the LinkedIn API at the correct time.
 
 
