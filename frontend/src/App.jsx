@@ -15,7 +15,7 @@ export default function App() {
   const [posts, setPosts] = useState([]);
   const [linkedinStatus, setLinkedinStatus] = useState({ connected: false });
   const [isLoading, setIsLoading] = useState(false);
-  const [collapsedThinking, setCollapsedThinking] = useState({});
+  const [expandedThinking, setExpandedThinking] = useState({});
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedDraftText, setSelectedDraftText] = useState('');
   const [selectedImage, setSelectedImage] = useState('');
@@ -358,7 +358,7 @@ export default function App() {
   }, [messages, isLoading]);
 
   const toggleThinking = (index) => {
-    setCollapsedThinking(prev => ({
+    setExpandedThinking(prev => ({
       ...prev,
       [index]: !prev[index]
     }));
@@ -614,10 +614,10 @@ export default function App() {
                           <span className="flex items-center gap-1.5">
                             <Search className="h-3.5 w-3.5 text-blue-400" /> Agent Research & Thinking Log
                           </span>
-                          {collapsedThinking[index] ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          {expandedThinking[index] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </button>
                         
-                        {!collapsedThinking[index] && (
+                        {expandedThinking[index] && (
                           <div className="p-3 border-t border-slate-850 text-xs text-slate-400 font-mono whitespace-pre-line leading-relaxed max-h-48 overflow-y-auto">
                             {msg.thinking}
                           </div>
