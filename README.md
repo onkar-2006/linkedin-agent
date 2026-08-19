@@ -10,12 +10,19 @@ An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashb
 ## ✨ Key Features & Engineering Highlights
 
 * **Stateful LangGraph Workflows**: Orchestrates post copywriting, topic research, and visual generation using stateful graph logic.
+  
 * **Human-in-the-Loop (HITL)**: Uses thread checkpointer interrupts to pause execution for user reviews on copy drafts, image selections, and publish approvals.
+  
 * **Contextual Copy Revisions**: Automatically evaluates previous drafts and user revision requests without triggering redundant web searches.
+  
 * **Isolated Multi-User Contexts**: Securely partitions conversations, credentials, and schedule queues by the user's LinkedIn member URN (`X-User-URN`).
+  
 * **Resilient Key Rotation Chain**: Automatically rotates fallback Groq API keys on rate-limit HTTP 429 errors and optimizes prompt token sizes.
+  
 * **Autopilot Job Scheduler**: Background daemon thread checks the SQLite queue every 10 seconds to publish scheduled posts on time.
+  
 * **Flux Visuals Pipeline**: Generates flat vector graphics, clay 3D objects, or modern glassmorphic cards using enhanced Flux prompts and dynamic seeding.
+  
 * **DevOps Ready**: Out-of-the-box Render Blueprint config (`render.yaml`) and Docker Compose scripts for containerized hosting.
 
 
