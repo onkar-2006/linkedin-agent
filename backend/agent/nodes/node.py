@@ -5,7 +5,7 @@ from langsmith import traceable
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from agent.tools.tools import web_search, generate_image
-from agent.prompts.prompt import SYSTEM_DRAFT_PROMPT, SYSTEM_POST_PROMPT, IMAGE_PROMPT_GENERATOR_PROMPT, SYSTEM_CLASSIFIER_PROMPT, SYSTEM_CHITCHAT_PROMPT
+from agent.prompts.prompt import SYSTEM_DRAFT_PROMPT, SYSTEM_POST_PROMPT, IMAGE_PROMPT_GENERATOR_PROMPT, SYSTEM_CLASSIFIER_PROMPT, SYSTEM_CHITCHAT_PROMPT, SYSTEM_REVISION_PROMPT
 import fastmcp_linkedin
 
 logger = logging.getLogger("workflow_nodes")
@@ -136,7 +136,7 @@ class WorkflowNodes:
     def research_and_draft(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Research & Draft Node: Takes the user's initial prompt (or revision request),
-        performs web search, creates the draft, and resets routing variables.
+        performs web search (if initial) or revises draft, and resets routing variables.
         """
         logger.info("Executing Research & Draft Node...")
         if not isinstance(state, dict):
@@ -146,16 +146,26 @@ class WorkflowNodes:
             return {"thinking_log": ["No messages found. Skipping research."]}
             
         last_user_message = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+        current_draft = state.get("draft_content")
         
-        # 1. Run web search
-        thinking = f"Analyzing prompt: '{last_user_message}' and initiating research search query..."
-        logger.info(thinking)
-        search_result = web_search.invoke(last_user_message)
-        
-        # 2. Write Draft Post
-        user_prompt = f"User request: {last_user_message}\n\nResearch Data:\n{search_result}"
-        draft_thinking = "Writing the draft post. Structuring content with hook, body bullets, and CTA."
-        draft_raw = self._call_llm(SYSTEM_DRAFT_PROMPT, user_prompt)
+        if current_draft and current_draft.strip():
+            # Revision Flow: Use existing draft and apply user changes
+            thinking = f"Revising existing copy draft based on user feedback: '{last_user_message}'..."
+            logger.info(thinking)
+            search_result = "Skipped web search (Revision Flow)"
+            
+            user_prompt = f"Existing Draft:\n{current_draft}\n\nUser Revision Request:\n{last_user_message}"
+            draft_thinking = "Applying user's changes to the existing draft."
+            draft_raw = self._call_llm(SYSTEM_REVISION_PROMPT, user_prompt)
+        else:
+            # Initial Flow: Run web search and draft from scratch
+            thinking = f"Analyzing prompt: '{last_user_message}' and initiating research search query..."
+            logger.info(thinking)
+            search_result = web_search.invoke(last_user_message)
+            
+            user_prompt = f"User request: {last_user_message}\n\nResearch Data:\n{search_result}"
+            draft_thinking = "Writing the draft post. Structuring content with hook, body bullets, and CTA."
+            draft_raw = self._call_llm(SYSTEM_DRAFT_PROMPT, user_prompt)
         
         import re
         thinking_match = re.search(r"<thinking>(.*?)</thinking>", draft_raw, re.DOTALL | re.IGNORECASE)
@@ -176,10 +186,12 @@ class WorkflowNodes:
                     draft_content = parts[1].strip()
         
         return {
-            "research_results": [search_result],
+            "research_results": state.get("research_results", []) if current_draft else [search_result],
             "draft_content": draft_content,
             "thinking_log": state.get("thinking_log", []) + [thinking, thinking_text],
-            # Reset workflow statuses for the new draft
+            # Reset workflow statuses for the new draft (and clear previous image visual references)
+            "image_url": None,
+            "image_prompt": None,
             "approval_status": "pending",
             "image_needed": "pending",
             "image_approved": "pending",
