@@ -18,6 +18,26 @@ An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashb
 * **Flux Visuals Pipeline**: Generates flat vector graphics, clay 3D objects, or modern glassmorphic cards using enhanced Flux prompts and dynamic seeding.
 * **DevOps Ready**: Out-of-the-box Render Blueprint config (`render.yaml`) and Docker Compose scripts for containerized hosting.
 
+
+---
+
+## 🔄 Example Agent Workflow (Step-by-Step)
+
+The following sequence describes the logical path of a single post creation workflow inside the platform:
+
+1. **User Request**: The user enters a topic in the chat (e.g. *"Draft a post explaining LangGraph checkpoints"*).
+2. **Topic Research**: The agent initiates a Tavily search query, gathering live documentation, release logs, or news summaries.
+3. **Drafting Copy**: The agent passes the research payload to the LLM (prioritizing `openai/gpt-oss-120b` with fallbacks) to write a hook-structured LinkedIn post. The workflow halts on a LangGraph interrupt gate.
+4. **Draft Review (Human-in-the-Loop)**:
+   * **Rejection**: If the user submits revision feedback (e.g., *"Make it more engaging"*), the graph routes back to the draft node. The agent evaluates the previous draft context, generates an updated version, and halts again for approval.
+   * **Approval**: The user approves the draft copy, resuming the graph.
+5. **Image Choice**: The agent prompts the user to select if they want a graphic image to accompany the post.
+   * If yes, the agent synthesizes a visual description prompt, calls the **Flux generator**, renders the clay 3D or glassmorphic layout, and halts for visual approval.
+6. **Publishing Option**: Once the copy and visual assets are confirmed, the user chooses between **Immediate** publishing or **Scheduled** release.
+7. **Execution**:
+   * **Immediate**: The post is sent directly to the LinkedIn API and is live instantly.
+   * **Scheduled**: The post is added to the SQLite queue with a future ISO timestamp. The backend daemon scheduler detects the entry and dispatches it to the LinkedIn API at the correct time.
+     
 ---
 
 ## 🏗️ System Architecture
@@ -215,71 +235,4 @@ npm run dev
 Open `http://localhost:5173` in your browser.
 
 ---
-
-## 🚀 Key Implementation Features
-* **Upgraded Visual Assets**: Utilizes the premium 12B **Flux** model via Pollinations AI. Prompts are automatically enhanced to generate modern clay 3D renders, sleek dark mode vectors, or premium glassmorphic UI card designs.
-* **Auto-Scheduler Worker**: The background daemon worker thread checks the SQLite database every 10 seconds. When a post's `scheduled_time` is reached, it publishes the post automatically to LinkedIn.
-* **Binary Image Upload**: Supports uploading local/base64-encoded visual assets to LinkedIn via the binary image stream.
-
----
-
-## 🌐 Deploy to Render
-
-We deploy the **FastAPI Backend** using the automated Blueprint [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml) blueprint, and deploy the **Vite React Frontend** separately as a Static Site.
-
-### Step 1: Deploy Backend via Blueprint
-1. **Push your code** to your GitHub repository.
-2. Go to the [Render Dashboard](https://dashboard.render.com/) and click **New -> Blueprint**.
-3. Select your repository and click **Connect**.
-4. Render will parse [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml) and prompt you for the backend environment variables (like `TAVILY_API_KEY`, `GROQ_API_KEY`, etc.). Fill them in.
-5. Click **Apply**.
-6. Once the backend Web Service is live, copy its URL (e.g. `https://linkedin-autopilot-backend-xxxx.onrender.com`).
-
-### Step 2: Deploy Frontend as Static Site
-1. On the Render Dashboard, click **New -> Static Site**.
-2. Select your repository and click **Connect**.
-3. Configure the Static Site settings:
-   * **Name**: `linkedin-autopilot-frontend`
-   * **Root Directory**: `frontend`
-   * **Build Command**: `npm install && npm run build`
-   * **Publish Directory**: `dist`
-4. Under the **Environment** tab, click **Add Environment Variable**:
-   * **Key**: `VITE_API_BASE`
-   * **Value**: `${YOUR_BACKEND_URL}/api` *(For example: `https://linkedin-autopilot-backend-xxxx.onrender.com/api`)*
-5. Click **Create Static Site**. Render will compile and serve your frontend static dashboard.
-
-
----
-
-### ⚠️ Render Free Plan Limitations & Workarounds
-
-If you deploy this application under Render's **Free Plan**, you must configure the following to ensure the application behaves correctly:
-
-#### 1. Ephemeral Database Resets
-* **Problem**: Render's Free tier does not support persistent disks. This means your SQLite database (`database.db`) is stored inside the container's temporary memory. Whenever the container restarts or redeploys, **all chat history, scheduled posts, and user credentials will be cleared.**
-* **Solution**: For a 100% free setup with persistence, you can deploy the backend container to **Railway** (which supports free persistent volumes), or modify the backend to connect to a free external database like neon.tech or Supabase. Alternatively, upgrade the Render backend to a **Starter Web Service** ($5/month) and uncomment the `disk:` block in [`render.yaml`](file:///c:/Users/DELL/Desktop/assignment-linkedine/render.yaml#L27-L32) to mount a persistent disk volume.
-
-#### 2. Keeping the Post Scheduler Active (Avoiding Server Sleep)
-* **Problem**: Render puts Free web services to sleep after 15 minutes of inactivity. When the container sleeps, the background scheduler thread (`run_post_scheduler`) stops running, and **scheduled posts will not publish on time**.
-* **Solution**: Create a free account on [UptimeRobot](https://uptimerobot.com/) or [Cron-Job.org](https://cron-job.org/) and set up an HTTP monitor that pings your backend status endpoint (`https://your-backend.onrender.com/api/auth/linkedin/status`) every **10 to 12 minutes**. This keep-alive ping keeps your backend active 24/7 for free, allowing the background scheduler to publish scheduled posts on time!
-
----
-
-## 🔄 Example Agent Workflow (Step-by-Step)
-
-The following sequence describes the logical path of a single post creation workflow inside the platform:
-
-1. **User Request**: The user enters a topic in the chat (e.g. *"Draft a post explaining LangGraph checkpoints"*).
-2. **Topic Research**: The agent initiates a Tavily search query, gathering live documentation, release logs, or news summaries.
-3. **Drafting Copy**: The agent passes the research payload to the LLM (prioritizing `openai/gpt-oss-120b` with fallbacks) to write a hook-structured LinkedIn post. The workflow halts on a LangGraph interrupt gate.
-4. **Draft Review (Human-in-the-Loop)**:
-   * **Rejection**: If the user submits revision feedback (e.g., *"Make it more engaging"*), the graph routes back to the draft node. The agent evaluates the previous draft context, generates an updated version, and halts again for approval.
-   * **Approval**: The user approves the draft copy, resuming the graph.
-5. **Image Choice**: The agent prompts the user to select if they want a graphic image to accompany the post.
-   * If yes, the agent synthesizes a visual description prompt, calls the **Flux generator**, renders the clay 3D or glassmorphic layout, and halts for visual approval.
-6. **Publishing Option**: Once the copy and visual assets are confirmed, the user chooses between **Immediate** publishing or **Scheduled** release.
-7. **Execution**:
-   * **Immediate**: The post is sent directly to the LinkedIn API and is live instantly.
-   * **Scheduled**: The post is added to the SQLite queue with a future ISO timestamp. The backend daemon scheduler detects the entry and dispatches it to the LinkedIn API at the correct time.
-
 
