@@ -33,14 +33,20 @@ An AI-driven LinkedIn copywriting, graphic generation, and post scheduling dashb
 The following sequence describes the logical path of a single post creation workflow inside the platform:
 
 1. **User Request**: The user enters a topic in the chat (e.g. *"Draft a post explaining LangGraph checkpoints"*).
+
 2. **Topic Research**: The agent initiates a Tavily search query, gathering live documentation, release logs, or news summaries.
+
 3. **Drafting Copy**: The agent passes the research payload to the LLM (prioritizing `openai/gpt-oss-120b` with fallbacks) to write a hook-structured LinkedIn post. The workflow halts on a LangGraph interrupt gate.
+
 4. **Draft Review (Human-in-the-Loop)**:
    * **Rejection**: If the user submits revision feedback (e.g., *"Make it more engaging"*), the graph routes back to the draft node. The agent evaluates the previous draft context, generates an updated version, and halts again for approval.
    * **Approval**: The user approves the draft copy, resuming the graph.
+
 5. **Image Choice**: The agent prompts the user to select if they want a graphic image to accompany the post.
    * If yes, the agent synthesizes a visual description prompt, calls the **Flux generator**, renders the clay 3D or glassmorphic layout, and halts for visual approval.
+
 6. **Publishing Option**: Once the copy and visual assets are confirmed, the user chooses between **Immediate** publishing or **Scheduled** release.
+
 7. **Execution**:
    * **Immediate**: The post is sent directly to the LinkedIn API and is live instantly.
    * **Scheduled**: The post is added to the SQLite queue with a future ISO timestamp. The backend daemon scheduler detects the entry and dispatches it to the LinkedIn API at the correct time.
